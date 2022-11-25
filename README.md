@@ -21,6 +21,7 @@ and receivers of email; building a set of reference points for analysis.
 - _dcc represents the display name of the cc'd recipients in '\n'.join() format
 - _att represents the quantity of detected attachments
 - _msg represents the extracted body of the email
+- _notes represents a column for the user to modify as needed
 
 ## Requirements
 ```
@@ -36,3 +37,4 @@ python3 -m pip install requirements.txt
 - Create a table showing individual Cc relationships
 - Adding of heatmap visualizations
 - Visual tracing of relationships
+- Fixing the attachment count bug

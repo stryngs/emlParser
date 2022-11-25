@@ -141,7 +141,7 @@ for eml in os.listdir('emails'):
 
         ## Update eList
         else:
-            eList.append((eml, dt, subj, _from, _to, _cc, _dfrom, _dto, _dcc, hasAttach, txt))
+            eList.append((eml, dt, subj, _from, _to, _cc, _dfrom, _dto, _dcc, hasAttach, txt, ''))
 
     ## Let the user know the status and update the count
     if cnt % stdCnt == 0:
@@ -156,7 +156,7 @@ with open('emailParseErrors.log', 'w') as oFile:
         oFile.write(broken + '\n')
 
 ## Write a temporary CSV
-hdrs = ['_eml', '_time', '_subj', '_from', '_to', ' _cc', '_dfrom', '_dto', '_dcc', '_att', '_msg']
+hdrs = ['_eml', '_time', '_subj', '_from', '_to', ' _cc', '_dfrom', '_dto', '_dcc', '_att', '_msg', '_notes']
 with open('csvWriteErrors.log', 'a') as eFile:
     with open('tmp.csv', 'w', encoding = 'utf-8') as oFile:
         writer = csv.writer(oFile)
