@@ -81,11 +81,10 @@ for eml in os.listdir('emails'):
             _dcc = None
 
         ## To
-        _to = None
-        _dto = None
         try:
             _TO = [i for i in msg.get('To').addresses]
-            _to = 1
+            _to = '\n'.join([i.addr_spec for i in _TO])
+            _dto = '\n'.join([i.display_name for i in _TO])
         except:
             _to = None
             _dto = None
@@ -140,17 +139,9 @@ for eml in os.listdir('emails'):
                 oFile.write(f'ext: {extension}\n')
                 oFile.write('dType: {0}\n\n'.format(type(data)))
 
-        ## Iterate through multiple recipients and update eList
-        if _to == 1:
-            for addr in _TO:
-                _to = addr.addr_spec
-                _dto = addr.display_name
-                eList.append((eml, dt, subj, _from, _to, _cc, _dfrom, _dto, _dcc, hasAttach, txt))
-
-        ## Update eList with the singular recipient
+        ## Update eList
         else:
             eList.append((eml, dt, subj, _from, _to, _cc, _dfrom, _dto, _dcc, hasAttach, txt))
-
 
     ## Let the user know the status and update the count
     if cnt % stdCnt == 0:
