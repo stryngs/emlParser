@@ -1,5 +1,5 @@
 numpy
 pandas
 python-dateutil
-pytz==
-six==
+pytz
+six

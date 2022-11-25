@@ -19,6 +19,7 @@ and receivers of email; building a set of reference points for analysis.
 - _dfrom represents the display name of the sender in '\n'.join() format
 - _dto represents the display name of the recipient in '\n'.join() format
 - _dcc represents the display name of the cc'd recipients in '\n'.join() format
+- _att represents the quantity of detected attachments
 - _msg represents the extracted body of the email
 
 ## Requirements
@@ -35,4 +36,3 @@ python3 -m pip install requirements.txt
 - Create a table showing individual Cc relationships
 - Adding of heatmap visualizations
 - Visual tracing of relationships
-- The ability to save email attachment(s)

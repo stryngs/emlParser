@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 import csv
-import datetime
-import json
+import io
 import os
+import mimetypes
 import pandas as pd
+import shutil
 import sqlite3 as lite
 import time
 import warnings
@@ -12,20 +13,24 @@ from email.parser import BytesParser
 
 ## os prep
 tStart = time.time()
-if os.path.isfile('emailParseErrors.lst'):
-    os.remove('emailParseErrors.lst')
-if os.path.isfile('csvWriteErrors.lst'):
-    os.remove('csvWriteErrors.lst')
+tVal = tStart
+if os.path.isfile('emailParseErrors.log'):
+    os.remove('emailParseErrors.log')
+if os.path.isfile('csvWriteErrors.log'):
+    os.remove('csvWriteErrors.log')
+if os.path.isfile('exceptions.log'):
+    os.remove('exceptions.log')
 if os.path.isfile('eml.sqlite3'):
     os.remove('eml.sqlite3')
-if os.path.isfile('tmp.csv'):
-    os.remove('tmp.csv')
+if os.path.isdir('attachments'):
+    shutil.rmtree('attachments')
+os.mkdir('attachments')
 
 ## Parse prep
 eList = []
 brokenCounts = []
 cnt = 1
-stdCnt = 1000
+stdCnt = 10000
 
 ## Cycle through emails
 for eml in os.listdir('emails'):
@@ -85,30 +90,83 @@ for eml in os.listdir('emails'):
             _to = None
             _dto = None
 
+        ## attachment parsing ideas-> https://gist.github.com/dukedougal/9301467
+        try:
+            hasAttach = 0
+            extension = None
+            aDir = 'attachments/{0}'.format(eml.split('.')[0])
+            for attachment in msg.iter_attachments():
+                hasAttach += 1
+                fn = attachment.get_filename()
+                if fn:
+                    extension = os.path.splitext(attachment.get_filename())[1]
+                else:
+                    extension = mimetypes.guess_extension(attachment.get_content_type())
+                    if extension is None:
+                        extension = '.txt'
+                if len(extension) == 0:
+                    extension = '.txt'
+                f = io.BytesIO()
+                data = attachment.get_content()
+                if len(data) > 0:
+                    if not os.path.isdir(aDir):
+                        os.mkdir(aDir)
+                    if fn is None:
+                        fn = 'noFilename'
+                        if type(data) == str:
+                            with open(f'{aDir}/{fn}{extension}', 'a') as sFile:
+                                sFile.write(data)
+                        else:
+                            if extension != '.eml':
+                                with open(f'{aDir}/{fn}{extension}', 'ab') as bFile:
+                                    bFile.write(data)
+                            else:
+                                with open(f'{aDir}/{dt}{extension}', 'a') as sFile:
+                                    sFile.write(data.as_string())
+                    else:
+                        if type(data) == str:
+                            with open(f'{aDir}/{fn}{extension}', 'w') as sFile:
+                                sFile.write(data)
+                        else:
+                            with open(f'{aDir}/{fn}{extension}', 'wb') as bFile:
+                                bFile.write(data)
+
+        except Exception as E:
+            with open('exceptions.log', 'a') as oFile:
+                oFile.write(f'eml: {eml}\n')
+                oFile.write(f'ERROR: {E}\n')
+                oFile.write(f'aDir: {aDir}\n')
+                oFile.write(f'fn: {fn}\n')
+                oFile.write(f'ext: {extension}\n')
+                oFile.write('dType: {0}\n\n'.format(type(data)))
+
         ## Iterate through multiple recipients and update eList
         if _to == 1:
             for addr in _TO:
                 _to = addr.addr_spec
                 _dto = addr.display_name
-                eList.append((eml, dt, subj, _from, _to, _cc, _dfrom, _dto, _dcc, txt))
+                eList.append((eml, dt, subj, _from, _to, _cc, _dfrom, _dto, _dcc, hasAttach, txt))
 
         ## Update eList with the singular recipient
         else:
-            eList.append((eml, dt, subj, _from, _to, _cc, _dfrom, _dto, _dcc, txt))
+            eList.append((eml, dt, subj, _from, _to, _cc, _dfrom, _dto, _dcc, hasAttach, txt))
+
 
     ## Let the user know the status and update the count
     if cnt % stdCnt == 0:
-        print(cnt, time.time())
+        oVal = tVal
+        tVal = time.time()
+        print(cnt, tVal, tVal - oVal, tVal - tStart)
     cnt += 1
 
 ## Notate failed email parsing
-with open('emailParseErrors.lst', 'w') as oFile:
+with open('emailParseErrors.log', 'w') as oFile:
     for broken in brokenCounts:
         oFile.write(broken + '\n')
 
 ## Write a temporary CSV
-hdrs = ['_eml', '_time', '_subj', '_from', '_to', ' _cc', '_dfrom', '_dto', '_dcc', '_msg']
-with open('csvWriteErrors.lst', 'a') as eFile:
+hdrs = ['_eml', '_time', '_subj', '_from', '_to', ' _cc', '_dfrom', '_dto', '_dcc', '_att', '_msg']
+with open('csvWriteErrors.log', 'a') as eFile:
     with open('tmp.csv', 'w', encoding = 'utf-8') as oFile:
         writer = csv.writer(oFile)
         writer.writerow(hdrs)
