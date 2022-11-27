@@ -3,23 +3,21 @@ import csv
 import io
 import os
 import mimetypes
-import pandas as pd
 import shutil
 import sqlite3 as lite
 import time
-import warnings
 from email import policy
 from email.parser import BytesParser
 
 ## os prep
 tStart = time.time()
 tVal = tStart
-if os.path.isfile('emailParseErrors.log'):
-    os.remove('emailParseErrors.log')
-if os.path.isfile('csvWriteErrors.log'):
-    os.remove('csvWriteErrors.log')
-if os.path.isfile('exceptions.log'):
-    os.remove('exceptions.log')
+if os.path.isfile('errParsing.log'):
+    os.remove('errParsing.log')
+if os.path.isfile('errAttachment.log'):
+    os.remove('errAttachment.log')
+if os.path.isfile('errSql.log'):
+    os.remove('errSql.log')
 if os.path.isfile('eml.sqlite3'):
     os.remove('eml.sqlite3')
 if os.path.isdir('attachments'):
@@ -95,7 +93,11 @@ for eml in os.listdir('emails'):
             extension = None
             aDir = 'attachments/{0}'.format(eml.split('.')[0])
             for attachment in msg.iter_attachments():
+
+                ## Increase count
                 hasAttach += 1
+
+                ## filename and extensions
                 fn = attachment.get_filename()
                 if fn:
                     extension = os.path.splitext(attachment.get_filename())[1]
@@ -105,7 +107,8 @@ for eml in os.listdir('emails'):
                         extension = '.txt'
                 if len(extension) == 0:
                     extension = '.txt'
-                f = io.BytesIO()
+
+                ## obtain the data
                 data = attachment.get_content()
                 if len(data) > 0:
                     if not os.path.isdir(aDir):
@@ -131,8 +134,9 @@ for eml in os.listdir('emails'):
                                 bFile.write(data)
 
         except Exception as E:
-            with open('exceptions.log', 'a') as oFile:
-                oFile.write(f'eml: {eml}\n')
+            hasAttach = 'ERR'
+            with open('errAttachment.log', 'a') as oFile:
+                oFile.write(f'- eml: {eml}\n')
                 oFile.write(f'ERROR: {E}\n')
                 oFile.write(f'aDir: {aDir}\n')
                 oFile.write(f'fn: {fn}\n')
@@ -140,8 +144,7 @@ for eml in os.listdir('emails'):
                 oFile.write('dType: {0}\n\n'.format(type(data)))
 
         ## Update eList
-        else:
-            eList.append((eml, dt, subj, _from, _to, _cc, _dfrom, _dto, _dcc, hasAttach, txt, ''))
+        eList.append((eml, dt, subj, _from, _to, _cc, _dfrom, _dto, _dcc, hasAttach, txt, ''))
 
     ## Let the user know the status and update the count
     if cnt % stdCnt == 0:
@@ -151,30 +154,61 @@ for eml in os.listdir('emails'):
     cnt += 1
 
 ## Notate failed email parsing
-with open('emailParseErrors.log', 'w') as oFile:
+with open('errParsing.log', 'w') as oFile:
     for broken in brokenCounts:
         oFile.write(broken + '\n')
 
-## Write a temporary CSV
-hdrs = ['_eml', '_time', '_subj', '_from', '_to', ' _cc', '_dfrom', '_dto', '_dcc', '_att', '_msg', '_notes']
-with open('csvWriteErrors.log', 'a') as eFile:
-    with open('tmp.csv', 'w', encoding = 'utf-8') as oFile:
-        writer = csv.writer(oFile)
-        writer.writerow(hdrs)
-        for e in eList:
-            try:
-                writer.writerow(e)
-            except:
-                eFile.write(e[0] + '\n')
+## results to sql
+# con = lite.connect('eml.sqlite3', isolation_level = None)                     ## defaulted choice for memory safe purposes
+con = lite.connect('eml.sqlite3')                                               ## try not to run out of RAM
+db = con.cursor()
+db.execute("""
+           CREATE TABLE eml(_eml TEXT,
+                            _time TEXT,
+                            _subj TEXT,
+                            _from TEXT,
+                            _to TEXT,
+                            _cc TEXT,
+                            _dfrom TEXT,
+                            _dto TEXT,
+                            _dcc TEXT,
+                            _att TEXT,
+                            _msg TEXT,
+                            _notes TEXT);
+           """)
+with open('errSql.log', 'w') as eFile:
+    for e in eList:
+        try:
+            db.execute("""
+                       INSERT INTO eml VALUES(?,
+                                              ?,
+                                              ?,
+                                              ?,
+                                              ?,
+                                              ?,
+                                              ?,
+                                              ?,
+                                              ?,
+                                              ?,
+                                              ?,
+                                              ?);
+                       """, (e[0],
+                             e[1],
+                             e[2],
+                             e[3],
+                             e[4],
+                             e[5],
+                             e[6],
+                             e[7],
+                             e[8],
+                             e[9],
+                             e[10],
+                             e[11]))
+        except Exception as E:
+            eFile.write(f'- {e[0]}\n')
+            eFile.write(e[-2] + '\n\n\n')
 
-## Convert to sql
-warnings.filterwarnings('ignore')
-con = lite.connect('eml.sqlite3')
-df = pd.read_csv('tmp.csv', encoding = 'utf-8')
-df.to_sql('eml', con, index = False)
+## cleanup
 con.commit()
 con.close()
-
-## Cleanup
-os.remove('tmp.csv')
 print(' Total runtime of ' + str(int(time.time() - tStart)) + ' seconds\n')
