@@ -23,11 +23,6 @@ and receivers of email; building a set of reference points for analysis.
 - _msg represents the extracted body of the email
 - _notes represents a column for the user to modify as needed
 
-## Requirements
-```
-python3 -m pip install requirements.txt
-```
-
 ## Directions
 1. Put the emails to be parsed into a folder called emails
 2. Place the folder called emails in this directory
