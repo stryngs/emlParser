@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import csv
-import io
 import os
 import mimetypes
 import shutil
